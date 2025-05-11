@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { IUser } from "../models/user.model";
 
-
+// Extend Express Request interface
 declare global {
   namespace Express {
     interface Request {
@@ -45,7 +45,7 @@ export const protect = async (
     req.user = decoded;
     next();
   } catch (error) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       message: "Not authorized to access this route",
     });
