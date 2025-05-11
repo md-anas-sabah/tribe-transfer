@@ -1,11 +1,23 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import Knowledge from "../models/knowledge.model";
 
 // @desc    Create a new knowledge item
 // @route   POST /api/knowledge
 // @access  Private
-export const createKnowledge = async (req: Request, res: Response) => {
+export const createKnowledge = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     // Add current user as owner
     req.body.owner = req.user.id;
 
@@ -28,10 +40,21 @@ export const createKnowledge = async (req: Request, res: Response) => {
 // @desc    Get all knowledge items
 // @route   GET /api/knowledge
 // @access  Private
-export const getAllKnowledge = async (req: Request, res: Response) => {
+export const getAllKnowledge = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     // Build filter object
-    const filter: any = {};
+    const filter: Record<string, any> = {};
 
     // Filter by category if provided
     if (req.query.category) {
@@ -80,17 +103,29 @@ export const getAllKnowledge = async (req: Request, res: Response) => {
 // @desc    Get a single knowledge item
 // @route   GET /api/knowledge/:id
 // @access  Private
-export const getKnowledgeById = async (req: Request, res: Response) => {
+export const getKnowledgeById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const knowledge = await Knowledge.findById(req.params.id)
       .populate("owner", "name email position")
       .populate("contributors", "name email position");
 
     if (!knowledge) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Knowledge item not found",
       });
+      return;
     }
 
     // Check if user has access to private knowledge
@@ -99,10 +134,11 @@ export const getKnowledgeById = async (req: Request, res: Response) => {
       knowledge.owner.toString() !== req.user.id &&
       req.user.role !== "admin"
     ) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: "Not authorized to access this knowledge item",
       });
+      return;
     }
 
     res.status(200).json({
@@ -121,15 +157,27 @@ export const getKnowledgeById = async (req: Request, res: Response) => {
 // @desc    Update a knowledge item
 // @route   PUT /api/knowledge/:id
 // @access  Private
-export const updateKnowledge = async (req: Request, res: Response) => {
+export const updateKnowledge = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     let knowledge = await Knowledge.findById(req.params.id);
 
     if (!knowledge) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Knowledge item not found",
       });
+      return;
     }
 
     // Check ownership or admin role
@@ -137,20 +185,21 @@ export const updateKnowledge = async (req: Request, res: Response) => {
       knowledge.owner.toString() !== req.user.id &&
       req.user.role !== "admin"
     ) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: "Not authorized to update this knowledge item",
       });
+      return;
     }
 
     // Add user to contributors if not the owner and not already a contributor
     if (knowledge.owner.toString() !== req.user.id) {
       const contributorExists = knowledge.contributors.some(
-        (contributor) => contributor.toString() === req.user.id
+        (contributor) => contributor.toString() === req.user?.id
       );
 
-      if (!contributorExists) {
-        knowledge.contributors.push(req.user.id);
+      if (!contributorExists && req.user.id) {
+        knowledge.contributors.push(new mongoose.Types.ObjectId(req.user.id));
       }
     }
 
@@ -163,6 +212,14 @@ export const updateKnowledge = async (req: Request, res: Response) => {
         runValidators: true,
       }
     );
+
+    if (!knowledge) {
+      res.status(404).json({
+        success: false,
+        message: "Knowledge item not found after update",
+      });
+      return;
+    }
 
     res.status(200).json({
       success: true,
@@ -180,15 +237,27 @@ export const updateKnowledge = async (req: Request, res: Response) => {
 // @desc    Delete a knowledge item
 // @route   DELETE /api/knowledge/:id
 // @access  Private
-export const deleteKnowledge = async (req: Request, res: Response) => {
+export const deleteKnowledge = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const knowledge = await Knowledge.findById(req.params.id);
 
     if (!knowledge) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Knowledge item not found",
       });
+      return;
     }
 
     // Check ownership or admin role
@@ -196,10 +265,11 @@ export const deleteKnowledge = async (req: Request, res: Response) => {
       knowledge.owner.toString() !== req.user.id &&
       req.user.role !== "admin"
     ) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: "Not authorized to delete this knowledge item",
       });
+      return;
     }
 
     await knowledge.deleteOne();
@@ -220,15 +290,27 @@ export const deleteKnowledge = async (req: Request, res: Response) => {
 // @desc    Search knowledge items
 // @route   GET /api/knowledge/search
 // @access  Private
-export const searchKnowledge = async (req: Request, res: Response) => {
+export const searchKnowledge = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const { query } = req.query;
 
     if (!query) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: "Search query is required",
       });
+      return;
     }
 
     // Create search filter
@@ -237,7 +319,7 @@ export const searchKnowledge = async (req: Request, res: Response) => {
         { title: { $regex: query, $options: "i" } },
         { description: { $regex: query, $options: "i" } },
         { content: { $regex: query, $options: "i" } },
-        { tags: { $in: [new RegExp(query as string, "i")] } },
+        { tags: { $in: [new RegExp(String(query), "i")] } },
       ],
     };
 

@@ -4,8 +4,11 @@ import { protect } from "../middleware/auth.middleware";
 
 const router = express.Router();
 
+// Register and login routes (public)
 router.post("/register", register);
 router.post("/login", login);
+
+// Protected routes
 router.get("/logout", logout);
 router.get("/me", protect, getMe);
 

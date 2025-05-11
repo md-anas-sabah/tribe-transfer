@@ -1,21 +1,28 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import User, { IUser } from "../models/user.model";
+import mongoose from "mongoose";
 
 // Generate JWT token
 const generateToken = (id: string): string => {
-  return jwt.sign({ id }, process.env.JWT_SECRET as string, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error("JWT_SECRET is not defined in environment variables");
+  }
+
+  return jwt.sign({ id }, secret, {
+    expiresIn: process.env.JWT_EXPIRES_IN || "30d",
   });
 };
 
-// Set cookie with token
+// Set cookie with token response
 const sendTokenResponse = (
   user: IUser,
   statusCode: number,
   res: Response
 ): void => {
-  const token = generateToken(user._id);
+  const token = generateToken(user._id.toString());
 
   const cookieOptions = {
     expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -140,7 +147,23 @@ export const logout = (req: Request, res: Response): void => {
 // @access  Private
 export const getMe = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = await User.findById(req.user.id);
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+      return;
+    }
 
     res.status(200).json({
       success: true,

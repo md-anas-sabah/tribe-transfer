@@ -7,6 +7,11 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY as string,
 });
 
+/**
+ * Generate knowledge summary from interview transcript
+ * @param transcript Interview transcript text
+ * @returns AI-generated summary
+ */
 export const generateKnowledgeSummary = async (
   transcript: string
 ): Promise<string> => {
@@ -37,14 +42,19 @@ export const generateKnowledgeSummary = async (
   }
 };
 
-export const detectSpofs = async (knowledgeData: any): Promise<any> => {
+/**
+ * Detect Single Points of Failure (SPOFs) in organization knowledge
+ * @param knowledgeData Knowledge data to analyze
+ * @returns SPOF analysis
+ */
+export const detectSpofs = async (knowledgeData: any[]): Promise<any[]> => {
   try {
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
           content:
-            "You are an AI assistant that helps with identifying Single Points of Failure (SPOFs) in organizational knowledge. Analyze the provided knowledge data and identify potential SPOFs.",
+            "You are an AI assistant that helps with identifying Single Points of Failure (SPOFs) in organizational knowledge. Analyze the provided knowledge data and identify potential SPOFs. Return the results as a JSON array with each SPOF containing userId, knowledgeAreas (array of objects with area, score, and relatedItems), riskScore, and backupPeople (array of objects with userId and coverageScore).",
         },
         {
           role: "user",
@@ -56,13 +66,26 @@ export const detectSpofs = async (knowledgeData: any): Promise<any> => {
       max_tokens: 2048,
     });
 
-    return JSON.parse(completion.choices[0]?.message?.content || "{}");
+    const content = completion.choices[0]?.message?.content || "[]";
+
+    try {
+      return JSON.parse(content);
+    } catch (e) {
+      console.error("Error parsing SPOF analysis:", e);
+      return [];
+    }
   } catch (error) {
     console.error("GROQ API error:", error);
     throw new Error("Failed to detect SPOFs");
   }
 };
 
+/**
+ * Generate a handover plan
+ * @param employeeData Employee data
+ * @param knowledgeData Knowledge data
+ * @returns Handover plan
+ */
 export const generateHandoverPlan = async (
   employeeData: any,
   knowledgeData: any
@@ -73,7 +96,7 @@ export const generateHandoverPlan = async (
         {
           role: "system",
           content:
-            "You are an AI assistant that helps with employee handovers. Generate a comprehensive handover plan based on the employee data and their knowledge areas.",
+            "You are an AI assistant that helps with employee handovers. Generate a comprehensive handover plan based on the employee data and their knowledge areas. Return the results as a JSON object with knowledgeItems (prioritized list of knowledge areas), contacts (key people to know), tasks (handover tasks), and documents (relevant documentation).",
         },
         {
           role: "user",
@@ -88,7 +111,14 @@ export const generateHandoverPlan = async (
       max_tokens: 2048,
     });
 
-    return JSON.parse(completion.choices[0]?.message?.content || "{}");
+    const content = completion.choices[0]?.message?.content || "{}";
+
+    try {
+      return JSON.parse(content);
+    } catch (e) {
+      console.error("Error parsing handover plan:", e);
+      return {};
+    }
   } catch (error) {
     console.error("GROQ API error:", error);
     throw new Error("Failed to generate handover plan");

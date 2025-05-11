@@ -7,17 +7,28 @@ import { detectSpofs } from "../services/ai.service";
 // @desc    Analyze and create SPOF entries
 // @route   POST /api/spof/analyze
 // @access  Private (Admin, Manager)
-export const analyzeSpof = async (req: Request, res: Response) => {
+export const analyzeSpof = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     // Get all users
-    const users = await User.find({ isActive: true });
+    const users: any = await User.find({ isActive: true });
 
     // Get all knowledge items
     const knowledgeItems = await Knowledge.find()
       .populate("owner", "name email department position")
       .populate("contributors", "name email department position");
 
-    // Group knowledge by owner
+    // Group knowledge by user
     const knowledgeByUser = users.map((user: any) => {
       // Filter knowledge items owned by this user
       const ownedKnowledge = knowledgeItems.filter(
@@ -93,8 +104,19 @@ export const analyzeSpof = async (req: Request, res: Response) => {
 // @desc    Get all SPOFs
 // @route   GET /api/spof
 // @access  Private
-export const getAllSpofs = async (req: Request, res: Response) => {
+export const getAllSpofs = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const spofs = await SPOF.find()
       .populate("employee", "name email department position")
       .populate("backupPeople.user", "name email department position")
@@ -118,18 +140,30 @@ export const getAllSpofs = async (req: Request, res: Response) => {
 // @desc    Get a single SPOF
 // @route   GET /api/spof/:id
 // @access  Private
-export const getSpofById = async (req: Request, res: Response) => {
+export const getSpofById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const spof = await SPOF.findById(req.params.id)
       .populate("employee", "name email department position")
       .populate("backupPeople.user", "name email department position")
       .populate("knowledgeAreas.relatedItems");
 
     if (!spof) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "SPOF not found",
       });
+      return;
     }
 
     res.status(200).json({
@@ -148,16 +182,28 @@ export const getSpofById = async (req: Request, res: Response) => {
 // @desc    Update a SPOF
 // @route   PUT /api/spof/:id
 // @access  Private
-export const updateSpof = async (req: Request, res: Response) => {
+export const updateSpof = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     // Find SPOF
     let spof = await SPOF.findById(req.params.id);
 
     if (!spof) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "SPOF not found",
       });
+      return;
     }
 
     // Update SPOF
@@ -169,6 +215,14 @@ export const updateSpof = async (req: Request, res: Response) => {
         runValidators: true,
       }
     );
+
+    if (!spof) {
+      res.status(404).json({
+        success: false,
+        message: "SPOF not found after update",
+      });
+      return;
+    }
 
     res.status(200).json({
       success: true,
@@ -186,15 +240,27 @@ export const updateSpof = async (req: Request, res: Response) => {
 // @desc    Delete a SPOF
 // @route   DELETE /api/spof/:id
 // @access  Private (Admin)
-export const deleteSpof = async (req: Request, res: Response) => {
+export const deleteSpof = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const spof = await SPOF.findById(req.params.id);
 
     if (!spof) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "SPOF not found",
       });
+      return;
     }
 
     await spof.deleteOne();

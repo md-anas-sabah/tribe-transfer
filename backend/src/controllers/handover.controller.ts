@@ -7,27 +7,40 @@ import { generateKnowledgeSummary } from "../services/ai.service";
 // @desc    Create a new handover
 // @route   POST /api/handovers
 // @access  Private (Admin, Manager)
-export const createHandover = async (req: Request, res: Response) => {
+export const createHandover = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const { employee, exitDate, status, successor } = req.body;
 
     // Check if employee exists
     const employeeExists = await User.findById(employee);
     if (!employeeExists) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Employee not found",
       });
+      return;
     }
 
     // Check if successor exists if provided
     if (successor) {
       const successorExists = await User.findById(successor);
       if (!successorExists) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           message: "Successor not found",
         });
+        return;
       }
     }
 
@@ -55,10 +68,21 @@ export const createHandover = async (req: Request, res: Response) => {
 // @desc    Get all handovers
 // @route   GET /api/handovers
 // @access  Private
-export const getAllHandovers = async (req: Request, res: Response) => {
+export const getAllHandovers = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     // Add filtering capability
-    const filter: any = {};
+    const filter: Record<string, any> = {};
 
     // If status is provided in query
     if (req.query.status) {
@@ -92,18 +116,30 @@ export const getAllHandovers = async (req: Request, res: Response) => {
 // @desc    Get a single handover
 // @route   GET /api/handovers/:id
 // @access  Private
-export const getHandoverById = async (req: Request, res: Response) => {
+export const getHandoverById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const handover = await Handover.findById(req.params.id)
       .populate("employee", "name email position department")
       .populate("successor", "name email position department")
       .populate("knowledgeItems.knowledge");
 
     if (!handover) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Handover not found",
       });
+      return;
     }
 
     res.status(200).json({
@@ -122,16 +158,28 @@ export const getHandoverById = async (req: Request, res: Response) => {
 // @desc    Update a handover
 // @route   PUT /api/handovers/:id
 // @access  Private
-export const updateHandover = async (req: Request, res: Response) => {
+export const updateHandover = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     // Check if handover exists
     let handover = await Handover.findById(req.params.id);
 
     if (!handover) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Handover not found",
       });
+      return;
     }
 
     // Update handover
@@ -139,6 +187,14 @@ export const updateHandover = async (req: Request, res: Response) => {
       new: true,
       runValidators: true,
     });
+
+    if (!handover) {
+      res.status(404).json({
+        success: false,
+        message: "Handover not found after update",
+      });
+      return;
+    }
 
     res.status(200).json({
       success: true,
@@ -156,15 +212,27 @@ export const updateHandover = async (req: Request, res: Response) => {
 // @desc    Delete a handover
 // @route   DELETE /api/handovers/:id
 // @access  Private (Admin)
-export const deleteHandover = async (req: Request, res: Response) => {
+export const deleteHandover = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const handover = await Handover.findById(req.params.id);
 
     if (!handover) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Handover not found",
       });
+      return;
     }
 
     await handover.deleteOne();
@@ -185,24 +253,37 @@ export const deleteHandover = async (req: Request, res: Response) => {
 // @desc    Conduct exit interview
 // @route   POST /api/handovers/:id/interview
 // @access  Private
-export const conductInterview = async (req: Request, res: Response) => {
+export const conductInterview = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const { transcript } = req.body;
 
     if (!transcript) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: "Interview transcript is required",
       });
+      return;
     }
 
     const handover = await Handover.findById(req.params.id);
 
     if (!handover) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Handover not found",
       });
+      return;
     }
 
     // Update handover with transcript and interview date
@@ -226,22 +307,35 @@ export const conductInterview = async (req: Request, res: Response) => {
 // @desc    Generate summary from interview
 // @route   POST /api/handovers/:id/summary
 // @access  Private
-export const generateSummary = async (req: Request, res: Response) => {
+export const generateSummary = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
+    if (!req.user || !req.user.id) {
+      res.status(401).json({
+        success: false,
+        message: "Not authorized",
+      });
+      return;
+    }
+
     const handover = await Handover.findById(req.params.id);
 
     if (!handover) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "Handover not found",
       });
+      return;
     }
 
     if (!handover.interviewTranscript) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: "No interview transcript found. Conduct an interview first.",
       });
+      return;
     }
 
     // Generate summary using AI service
